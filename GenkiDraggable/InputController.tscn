@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://ciaywd0fhkg8l"]
+
+[ext_resource type="Script" uid="uid://bolamiiirgutx" path="res://addons/GenkiDraggable/InputController.gd" id="1_n431x"]
+
+[node name="InputController" type="Node" node_paths=PackedStringArray("drag_plane_gizmo")]
+script = ExtResource("1_n431x")
+drag_plane_gizmo = NodePath("Marker3D")
+
+[node name="Marker3D" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.5, -0.866025, 0, 0.866025, 0.5, 0, 0.676613, 1.16765)
+gizmo_extents = 1.0
