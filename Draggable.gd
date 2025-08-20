@@ -25,22 +25,18 @@ signal on_click (mouse_position: Vector2)
 @export var begin_drag_speed: float = 1.0
 
 var _plane: Plane
-var _camera: Camera3D
 var _offset: Vector3 = Vector3.ZERO
 var _target_position: Vector3 = Vector3.ZERO
 var _begin_drag_lerp: float = 0.0
 var _drag_origin: Vector3
 var _is_being_dragged: bool
-# TODO Move threshold management to InputController
-var _input_start_time: int
-var _input_start_position: Vector2
+var _is_hovering: bool
 
 func _enter_tree() -> void:
 	ready.connect(_handle_ready)
 	mouse_entered.connect(_handle_mouse_entered)
 	mouse_exited.connect(_handle_mouse_exited)
 	get_tree().process_frame.connect(_handle_process)
-	input_event.connect(_handle_input_event)
 
 func _handle_ready ():
 	if !root:
@@ -49,18 +45,20 @@ func _handle_ready ():
 	_plane = InputController.plane
 
 func _handle_mouse_entered ():
+	_is_hovering = true
+	InputController.mouse_enter(self)
 	if !hoverable:
 		return
 	on_hover_enter.emit()
-	InputController.mouse_enter(self)
 	Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND)
 
 func _handle_mouse_exited ():
+	_is_hovering = false
+	InputController.mouse_exit(self)
 	if !hoverable:
 		return
 	on_hover_exit.emit()
-	InputController.mouse_exit(self)
-	if !InputController.is_dragging:
+	if !_is_being_dragged:
 		Input.set_default_cursor_shape(Input.CURSOR_ARROW)
 
 func _handle_process ():
@@ -71,34 +69,12 @@ func _handle_process ():
 	elif !use_offset:
 		root.global_position = _drag_origin.lerp(_target_position, _begin_drag_lerp)
 
-func _handle_input_event (camera: Camera3D, event: InputEvent, _event_position: Vector3,
-			_normal: Vector3, _shape_idx: int) -> void:
-	if !_camera:
-		_camera = camera
-	if event is InputEventMouseButton:
-		if event.button_index != MOUSE_BUTTON_LEFT:
-			return
-		if event.pressed:
-			_input_start_time = Time.get_ticks_msec()
-			_input_start_position = event.position
-			if !InputController.is_dragging:
-				_before_begin_drag(event.position)
-		elif event.is_released():
-			if Time.get_ticks_msec() - _input_start_time <= InputController.click_threshold_time_ms \
-				and _input_start_position.distance_to(event.position) \
-					<= InputController.click_threshold_distance:
-				on_click.emit(event.position)
-				click(event.position)
-			if InputController.is_dragging:
-				_before_end_drag(event.position)
-
 func _before_begin_drag (mouse_position: Vector2):
-	if !draggable or InputController.is_dragging:
+	if !draggable or _is_being_dragged:
 		return
-	on_begin_drag.emit(mouse_position)
 	Input.set_default_cursor_shape(Input.CURSOR_MOVE)
-	InputController.begin_drag(self)
 	_is_being_dragged = true
+	on_begin_drag.emit(mouse_position)
 	var point = InputController.mouse_to_world_position(mouse_position)
 	_target_position = point + _offset + drag_offset
 	if !drag_from_pivot:
@@ -122,14 +98,20 @@ func _before_drag (mouse_position: Vector2):
 		root.global_position = _drag_origin.lerp(_target_position, _begin_drag_lerp)
 	drag(mouse_position)
 
-func _before_end_drag (_mouse_position: Vector2):
+func _before_end_drag (mouse_position: Vector2):
 	if !draggable:
 		return
 	_is_being_dragged = false
-	on_end_drag.emit(_mouse_position)
-	InputController.end_drag(self)
-	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
-	end_drag(_mouse_position)
+	on_end_drag.emit(mouse_position)
+	if _is_hovering:
+		Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND)
+	else:
+		Input.set_default_cursor_shape(Input.CURSOR_ARROW)
+	end_drag(mouse_position)
+
+func _before_click (mouse_position: Vector2):
+	on_click.emit(mouse_position)
+	click(mouse_position)
 
 func begin_drag (_mouse_position: Vector2):
 	pass
