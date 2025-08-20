@@ -56,6 +56,9 @@ func end_drag (draggable: Draggable) -> void:
 
 func mouse_to_world_position (mouse_position: Vector2) -> Vector3:
 	var camera = get_viewport().get_camera_3d()
+	if !camera:
+		Debug.log_error("There is no 3D camera in the scene. Function 'mouse_to_world_position' needs one.")
+		return Vector3.ZERO
 	if !plane:
 		plane = Plane(camera.basis.z, Vector3.ZERO)
 	var ray_origin = camera.project_ray_origin(mouse_position)
