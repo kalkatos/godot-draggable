@@ -24,7 +24,6 @@ signal on_click (mouse_position: Vector2)
 ## Speed of the lerp when dragging the object.
 @export var begin_drag_speed: float = 1.0
 
-var _plane: Plane
 var _offset: Vector3 = Vector3.ZERO
 var _target_position: Vector3 = Vector3.ZERO
 var _begin_drag_lerp: float = 0.0
@@ -32,17 +31,13 @@ var _drag_origin: Vector3
 var _is_being_dragged: bool
 var _is_hovering: bool
 
-func _enter_tree() -> void:
-	ready.connect(_handle_ready)
+func _ready() -> void:
 	mouse_entered.connect(_handle_mouse_entered)
 	mouse_exited.connect(_handle_mouse_exited)
 	get_tree().process_frame.connect(_handle_process)
-
-func _handle_ready ():
 	if !root:
 		root = self
 	input_capture_on_drag = true
-	_plane = InputController.plane
 
 func _handle_mouse_entered ():
 	_is_hovering = true
