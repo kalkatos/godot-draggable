@@ -6,12 +6,18 @@ extends Node
 @export var click_threshold_time_ms: int = 200
 @export var click_threshold_distance: float = 10.0
 
-signal on_mouse_enter_draggable(draggable: Draggable, input_info: InputEventMouse)
-signal on_mouse_exit_draggable(draggable: Draggable, input_info: InputEventMouse)
-signal on_begin_drag(draggable: Draggable, input_info: InputEventMouse)
-signal on_drag(draggable: Draggable, input_info: InputEventMouse)
-signal on_end_drag(draggable: Draggable, input_info: InputEventMouse)
-signal on_click(draggable: Draggable, input_info: InputEventMouse)
+signal on_mouse_entered_draggable (draggable: Draggable, input_info: InputEventMouse)
+signal on_mouse_exited_draggable (draggable: Draggable, input_info: InputEventMouse)
+signal on_drag_began (draggable: Draggable, input_info: InputEventMouse)
+signal on_dragged (draggable: Draggable, input_info: InputEventMouse)
+signal on_drag_ended (draggable: Draggable, input_info: InputEventMouse)
+signal on_clicked (draggable: Draggable, input_info: InputEventMouse)
+
+enum ClickStatus { 
+	NOTHING = 0,
+	BEGAN = 1,
+	CONVERTED_TO_DRAG = 2,
+}
 
 var plane: Plane
 var input_info: InputEventMouse
@@ -22,21 +28,24 @@ var _input_start_time: int
 var _input_start_position: Vector2
 var _click_status: ClickStatus
 
-enum ClickStatus { NOTHING = 0, BEGAN = 1, CONVERTED_TO_DRAG = 2 }
-
 var is_dragging: bool = false:
 	get:
 		return _draggable != null
+
 
 func _ready ():
 	if drag_plane_gizmo:
 		plane = Plane(drag_plane_gizmo.basis.y, drag_plane_gizmo.global_position)
 
+
 func _process (_delta: float) -> void:
-	if _click_status == ClickStatus.BEGAN \
-		and _hover \
-		and Time.get_ticks_msec() - _input_start_time >= click_threshold_time_ms:
+	if (
+			_click_status == ClickStatus.BEGAN
+			and _hover
+			and Time.get_ticks_msec() - _input_start_time >= click_threshold_time_ms
+	):
 		begin_drag(_hover)
+
 
 func _input (event: InputEvent) -> void:
 	if event is InputEventMouse:
@@ -44,9 +53,11 @@ func _input (event: InputEvent) -> void:
 		if event is InputEventMouseMotion:
 			if is_dragging:
 				drag(_draggable)
-			elif _click_status == ClickStatus.BEGAN \
-				and _hover \
-				and _input_start_position.distance_to(event.position) >= click_threshold_distance:
+			elif (
+					_click_status == ClickStatus.BEGAN
+					and _hover
+					and _input_start_position.distance_to(event.position) >= click_threshold_distance
+			):
 				begin_drag(_hover)
 		elif event is InputEventMouseButton:
 			if event.button_index != MOUSE_BUTTON_LEFT:
@@ -66,42 +77,48 @@ func _input (event: InputEvent) -> void:
 
 func mouse_enter (draggable: Draggable) -> void:
 	_hover = draggable
-	on_mouse_enter_draggable.emit(draggable, input_info)
+	on_mouse_entered_draggable.emit(draggable, input_info)
+
 
 func mouse_exit (draggable: Draggable) -> void:
 	if _hover == draggable:
 		_hover = null
-	on_mouse_exit_draggable.emit(draggable, input_info)
+	on_mouse_exited_draggable.emit(draggable, input_info)
+
 
 func begin_drag (draggable: Draggable) -> void:
 	_click_status = ClickStatus.CONVERTED_TO_DRAG
 	draggable._before_begin_drag(input_info.position)
-	on_begin_drag.emit(draggable, input_info)
+	on_drag_began.emit(draggable, input_info)
 	_draggable = draggable
 
+
 func drag (draggable: Draggable) -> void:
-	if !is_dragging:
+	if not is_dragging:
 		return
 	draggable._before_drag(input_info.position)
-	on_drag.emit(draggable, input_info)
-	
+	on_dragged.emit(draggable, input_info)
+
+
 func end_drag (draggable: Draggable) -> void:
-	if !is_dragging:
+	if not is_dragging:
 		return
 	draggable._before_end_drag(input_info.position)
 	_draggable = null
-	on_end_drag.emit(draggable, input_info)
+	on_drag_ended.emit(draggable, input_info)
+
 
 func click (draggable: Draggable) -> void:
-	on_click.emit(draggable, input_info)
+	on_clicked.emit(draggable, input_info)
 	draggable._before_click(input_info.position)
+
 
 func mouse_to_world_position (mouse_position: Vector2) -> Vector3:
 	var camera = get_viewport().get_camera_3d()
-	if !camera:
+	if not camera:
 		Debug.log_error("There is no 3D camera in the scene. Function 'mouse_to_world_position' needs one.")
 		return Vector3.ZERO
-	if !plane:
+	if not plane:
 		plane = Plane(camera.basis.z, Vector3.ZERO)
 	var ray_origin = camera.project_ray_origin(mouse_position)
 	var ray_dir = camera.project_ray_normal(mouse_position)

@@ -1,15 +1,14 @@
+class_name Draggable
 extends Area3D
 
-class_name Draggable
+signal on_drag_began (mouse_position: Vector2)
+signal on_dragged (mouse_position: Vector2)
+signal on_drag_ended (mouse_position: Vector2)
+signal on_hover_entered
+signal on_hover_exited
+signal on_clicked (mouse_position: Vector2)
 
-signal on_begin_drag (mouse_position: Vector2)
-signal on_drag (mouse_position: Vector2)
-signal on_end_drag (mouse_position: Vector2)
-signal on_hover_enter
-signal on_hover_exit
-signal on_click (mouse_position: Vector2)
-
-## Root node where the drag will be applied
+## Root node where the _drag will be applied
 @export var root: Node
 ## If set to TRUE, the object can be hovered.
 @export var hoverable: bool = true
@@ -31,6 +30,7 @@ var _drag_origin: Vector3
 var _is_being_dragged: bool
 var _is_hovering: bool
 
+
 func _ready() -> void:
 	mouse_entered.connect(_handle_mouse_entered)
 	mouse_exited.connect(_handle_mouse_exited)
@@ -39,84 +39,95 @@ func _ready() -> void:
 		root = self
 	input_capture_on_drag = true
 
+
 func _handle_mouse_entered ():
 	_is_hovering = true
 	InputController.mouse_enter(self)
 	if !hoverable:
 		return
-	on_hover_enter.emit()
+	on_hover_entered.emit()
 	Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND)
+
 
 func _handle_mouse_exited ():
 	_is_hovering = false
 	InputController.mouse_exit(self)
-	if !hoverable:
+	if not hoverable:
 		return
-	on_hover_exit.emit()
-	if !_is_being_dragged:
+	on_hover_exited.emit()
+	if not _is_being_dragged:
 		Input.set_default_cursor_shape(Input.CURSOR_ARROW)
 
+
 func _handle_process ():
-	if !_is_being_dragged or !draggable:
+	if not _is_being_dragged or not draggable:
 		return
 	if is_equal_approx(_begin_drag_lerp, 1.0):
 		root.global_position = _target_position
-	elif !use_offset:
+	elif not use_offset:
 		root.global_position = _drag_origin.lerp(_target_position, _begin_drag_lerp)
 
+
 func _before_begin_drag (mouse_position: Vector2):
-	if !draggable or _is_being_dragged:
+	if not draggable or _is_being_dragged:
 		return
 	Input.set_default_cursor_shape(Input.CURSOR_MOVE)
 	_is_being_dragged = true
-	on_begin_drag.emit(mouse_position)
+	on_drag_began.emit(mouse_position)
 	var point = InputController.mouse_to_world_position(mouse_position)
 	_target_position = point + _offset + drag_offset
-	if !drag_from_pivot:
+	if not drag_from_pivot:
 		_offset = root.global_position - point
 	_begin_drag_lerp = 0.0
 	_drag_origin = root.global_position
-	if !use_offset:
+	if not use_offset:
 		var tween = create_tween()
 		tween.set_ease(Tween.EASE_OUT)
 		tween.tween_property(self, "_begin_drag_lerp", 1.0, 0.2)
-	begin_drag(mouse_position)
+	_begin_drag(mouse_position)
+
 
 func _before_drag (mouse_position: Vector2):
-	if !draggable or !_is_being_dragged:
+	if not draggable or not _is_being_dragged:
 		return
-	on_drag.emit(mouse_position)
+	on_dragged.emit(mouse_position)
 	var point = InputController.mouse_to_world_position(mouse_position)
 	_target_position = point + _offset + drag_offset
-	if use_offset and !is_equal_approx(_begin_drag_lerp, 1.0):
+	if use_offset and not is_equal_approx(_begin_drag_lerp, 1.0):
 		_begin_drag_lerp = clamp(_begin_drag_lerp + begin_drag_speed * get_process_delta_time(), 0.0, 1.0)
 		root.global_position = _drag_origin.lerp(_target_position, _begin_drag_lerp)
-	drag(mouse_position)
+	_drag(mouse_position)
+
 
 func _before_end_drag (mouse_position: Vector2):
-	if !draggable:
+	if not draggable:
 		return
 	_is_being_dragged = false
-	on_end_drag.emit(mouse_position)
+	on_drag_ended.emit(mouse_position)
 	if _is_hovering:
 		Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND)
 	else:
 		Input.set_default_cursor_shape(Input.CURSOR_ARROW)
-	end_drag(mouse_position)
+	_end_drag(mouse_position)
+
 
 func _before_click (mouse_position: Vector2):
-	on_click.emit(mouse_position)
-	click(mouse_position)
+	on_clicked.emit(mouse_position)
+	_click(mouse_position)
 
-func begin_drag (_mouse_position: Vector2):
+
+func _begin_drag (_mouse_position: Vector2):
 	pass
 
-func drag (_mouse_position: Vector2):
+
+func _drag (_mouse_position: Vector2):
 	pass
 
-func end_drag (_mouse_position: Vector2):
+
+func _end_drag (_mouse_position: Vector2):
 	pass
 
-func click (_mouse_position: Vector2):
+
+func _click (_mouse_position: Vector2):
 	Debug.logm("Clicked!")
 	pass
